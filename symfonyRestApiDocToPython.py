@@ -3,25 +3,21 @@ from bs4 import BeautifulSoup
 import re
 
 template_file = open("/tmp/rest_template.py", "wb")
-print('import re', file=template_file)
-print('server_url = ' + '\'http://www.commusoft4.co.uk\'', file=template_file)
 
-print("""class AutoVivification(dict):
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            value = self[item] = type(self)()
-            return value
-""", file=template_file)
+print("""import re
+import json
+server_url = 'http://www.commusoft4.co.uk/webservice_dev.php'
+token_key = 'IVC-Bz_FHcb8TsY9raQdIUFm-B16Up3czJxS5IYXG3N6QeHN9XQtLWOOvm6bsoFbtufj_8MqmKb92z0V5yyeqw'
 
-print('', file=template_file)
+class AutoVivification(dict):
+    def __missing__(self, missingkey):
+        self[missingkey] = type(self)()
+        return self[missingkey]
 
-print("""class BaseObjects:
+class BaseObjects:
     pass
-""", file=template_file)
 
-print("""class BaseCRUDObjects(BaseObjects):
+class BaseCRUDObjects(BaseObjects):
     def get(self, document):
         import requests
 
@@ -30,13 +26,13 @@ print("""class BaseCRUDObjects(BaseObjects):
     def post(self, document):
         import requests
         jsondoc = self.postParams(document)
-        response = requests.post("%s?token=%s" %(server_url + self.url, token_key), data=jsondoc)
+        response = requests.post("%s?token=%s" %(server_url + self.url, token_key), data=json.dumps(jsondoc))
         return response
 
     def put(self, document):
         import requests
         jsondoc = self.putParams(document)
-        response = requests.put("%s?token=%s" %(server_url + self.url, token_key), data=jsondoc)
+        response = requests.put("%s?token=%s" %(server_url + self.url, token_key), data=json.dumps(jsondoc))
         return response
 
 
@@ -45,16 +41,13 @@ print("""class BaseCRUDObjects(BaseObjects):
         self.deleteParams(document)
         response = requests.delete("%s?token=%s" %(server_url + self.url, token_key))
         return response
-
 """, file=template_file)
-filelocation = '/media/harish/storage/code/python/regex/APIdoc.html'
-filecontent = open(filelocation)
-soup = BeautifulSoup(filecontent)
+
+soup = BeautifulSoup(open('/media/harish/storage/code/python/regex/APIdoc.html'))
 
 for div in soup.find_all("div", { "id" : "section" }):
     t = div.h1.string
     base_class_name = t.replace(" ", "")
-    #print "base class is :" + base_class_name
 
     for li in div.find_all("li"):
         for h2 in li.find_all("h2"):
@@ -69,7 +62,6 @@ for div in soup.find_all("div", { "id" : "section" }):
                     else :
                         base_class_name = base_class_name + 'By' + additional_param.title() ;
 
-            #print "class name is : " + base_class_name
             print('',file=template_file )
             print('class ' + base_class_name + '(BaseCRUDObjects):' , file=template_file)
             print('    ' + 'url' + ' = ' + '\'' + path + '\'', file=template_file)
@@ -90,7 +82,7 @@ for div in soup.find_all("div", { "id" : "section" }):
                                 temp_param = input.get('value')
                                 brackets = re.findall('\[([A-Za-z0-9_]+)\]',input.get('value') )
                                 for bracket in brackets:
-                                    #print bracket
+                                    #print bracket\{([A-Za-z0-9]+)\}
                                     temp.append(bracket)
                                 for a in temp:
                                     if not a.isdigit():
@@ -105,9 +97,7 @@ for div in soup.find_all("div", { "id" : "section" }):
                                 title_search = re.search('([A-Za-z0-9]+)\[',input.get('value') , re.IGNORECASE)
                                 if title_search :
                                     i = 1;
-                                    #print "method name or class name " + method_name.lower() +  title_search.group(1).title()+'s'
                                     array_name = title_search.group(1)
-                                    #function_name = method_name.lower() +  title_search.group(1).title()
                                     function_name = title_search.group(1).title()
                     title_additional_params = re.findall('\{([A-Za-z0-9]+)\}',rest_endpoint )
                     if title_additional_params:
@@ -116,18 +106,8 @@ for div in soup.find_all("div", { "id" : "section" }):
                                 function_name = function_name + 'And' + additional_param.title() ;
                             else :
                                 function_name = function_name + 'By' + additional_param.title() ;
-
-                    #print
-                    #print 'class ' + method_name.title() +  function_name + ':'
-                    #print '    ' + array_name + ' = AutoVivification()'
-                    #print '    ' + 'url' + ' = ' + '\'' + rest_endpoint + '\''
-                    #for param in param_list:
-                    #    print '    ' + param + ' = \'\''
-
-                    #print 'class ' + base_class_name + ':'
                     print('    ' + 'def ' + method_name.lower() + 'Params' + '(self, document):', file=template_file)
-                    #print('    ' + '    ' + 'url' + ' = ' + '\'' + path + '\'', file=template_file)
-                    #refactor thr following
+                    #refactor the following
                     if (method_name.lower() == "put" or method_name.lower() == "post" ):
                         print('    ' + '    ' + array_name + ' = AutoVivification()', file=template_file)
 
@@ -135,17 +115,19 @@ for div in soup.find_all("div", { "id" : "section" }):
                         for param in param_list:
                             keys = re.search('(\[.*\])',param , re.IGNORECASE)
                             if keys:
-                                #print('    ' + '    ' + param + ' = \'\'', file=template_file
-                                print('    ' + '    ' + param + ' = document' + keys.group(1).replace("description", "descriptionText") , file=template_file)
+                                print('    ' + '    ' + param + ' = document'  + keys.group(1).replace("description", "descriptionText") , file=template_file)
                             else :
                                 #check if descriptionText replacement is unncessecary
-                                print('    ' + '    ' + param + ' = document[\'' + param.replace("description", "descriptionText") + '\']' , file=template_file)
+                                print('    ' + '    ' + param + ' = document[\''  + param.replace("description", "descriptionText") + '\']' , file=template_file)
+                    if (method_name.lower() == "put" or method_name.lower() == "post"):
+                        print('    ' + '    ' + array_name + ' = {\'' + array_name + '\' :' + array_name +'}' , file=template_file  )
+                    if (method_name.lower() == "put" or method_name.lower() == "post" or method_name.lower() == "delete"):
+                        #change the following to a global function
                         print("""
         path = self.url
         url_params = re.findall('\{([A-Za-z0-9]+)\}',path)
         if url_params:
             for url_param  in url_params :
-                print '{' + url_param + '}'
                 path = path.replace('{' + url_param + '}',str(eval(url_param)))
         self.url = path
         """, file=template_file)
